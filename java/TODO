@@ -1,0 +1,22 @@
+This project is intended to run Java 7 apps natively in inferno,
+by converting class files to dis and linking them at runtime.
+
+Currently working features:
+	- none, see problem list below
+	- although jvm runtime loader and linker is supposed to
+	work with java 1.4 classes (there was no chance to get
+	those sources, as java released only 1.5 ones and later)
+	sources are needed to provide native part of the JCL
+
+TODO:
+	- reworkd j2d to support modern exception handling in dis
+	- implement support for new bytecode instructions:
+		- ldc, ldc2, ldcw_2, ldc2_w: those will accept
+		more argument types, see http://docs.oracle.com/
+		javase/specs/jvms/se7/html/jvms-4.html#jvms-4.10.1.9.ldc
+		since class file version 49.0
+		- invokedynamic, completely new since 49.0
+	- prepare the pkg dir that would contain all the JCL classes
+	from the OpenJDK (as they come with GPL license), compiled and
+	translated into dis
+	- more to come later...
