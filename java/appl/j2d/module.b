@@ -11,8 +11,8 @@ dismod()
 {
 	name := array of byte THISCLASS;
 	n := len name;
-	if(n > NAMELEN-1)
-		n = NAMELEN-1;
+	if(n > Sys->NAMEMAX-1)
+		n = Sys->NAMEMAX-1;
 	bout.write(name, n);
 	bout.putb(byte 0);
 }

@@ -156,9 +156,9 @@ loaderror( ex : string, msg : string )
 	trace(JDEBUG,s);
 
 	# may need to trim before raise
-	if ( len s >= Sys->ERRLEN )
-		s = s[:Sys->ERRLEN-1];
-	sys->raise(s);
+	if ( len s >= Sys->ERRMAX )
+		s = s[:Sys->ERRMAX-1];
+	raise s;
 }
 
 error(s: string)
@@ -178,10 +178,9 @@ error(s: string)
 	trace(JDEBUG,s);
 
 	# may need to trim before raise
-	if ( len s >= Sys->ERRLEN )
-		s = s[:Sys->ERRLEN-1];
-	sys->raise(s);
-	
+	if ( len s >= Sys->ERRMAX )
+		s = s[:Sys->ERRMAX-1];
+	raise s;
 }
 
 warning(s: string)
@@ -417,8 +416,7 @@ doreloc()
 	#
 	initc : ref Class;
 	t     : ref ThreadData;
-	e := ref Sys->Exception;
-	if ( sys->rescue("*",e) == Sys->HANDLER)
+
 	{
 		while (initcl != nil) {
 			initc = hd initcl;
@@ -437,21 +435,21 @@ doreloc()
 			acquire();
 		}
 	}
-	else
+	exception e
 	{
-		sys->rescued(Sys->ONCE, nil);
-		#NOTE: a raise is only expected from the init calls therefore
-		#      when we reach here we need to block and acquire
-		block(t);
-		acquire();
-		if ( str->prefix(JCLDREX+exceptionininitializer, e.name ) == 1 )
-			loaderror(exceptionininitializer, e.name ); #rethrow
-		else			
-		{
-			# clear any java exception; we are replacing it
-			t.culprit = nil;
-			loaderror(exceptionininitializer, sys->sprint("%s[%d]", initc.name, e.pc));
-		}
+		"*" =>
+			#NOTE: a raise is only expected from the init calls therefore
+			#      when we reach here we need to block and acquire
+			block(t);
+			acquire();
+			if ( str->prefix(JCLDREX+exceptionininitializer, e ) == 1 )
+				loaderror(exceptionininitializer, e ); #rethrow
+			else			
+			{
+				# clear any java exception; we are replacing it
+				t.culprit = nil;
+				loaderror(exceptionininitializer, sys->sprint("%s[unk]", initc.name));
+			}
 	}
 }
 
@@ -463,9 +461,8 @@ doreloc()
 loader(name: string): ref Class
 {
 	released := 0;
-	e := ref Sys->Exception;
 	t := getthreaddata();
-	if (sys->rescue("*", e) == Sys->HANDLER) {
+	{
 		#trace(JDEBUG, sys->sprint("load class %s", name));
 		block(t);
 		acquire();
@@ -479,28 +476,30 @@ loader(name: string): ref Class
 #		if (errors)
 #			error(nil);
 		return c;
-	} else {
-		sys->rescued(Sys->ONCE, nil);
-		if(released == 0) {
-			release();
-			unblock(t);
-		}
-		if (e.name == nil)
-			e.name = "exit";
-
-		if ( str->prefix(JCLDREX, e.name) == 1 )
-			error(e.name);
-
-		error( sys->sprint( "%s:%s:%d", e.name, e.mod, e.pc ) );
-
-		#else if (e.name == noclassdeffound)
-		#{		
-		#	error(nil);
-		#}
-		#else
-		#	error(sys->sprint("loader exception: %s: %s: %d", e.mod, e.name, e.pc));
-		return nil;
 	}
+	exception e
+	{
+		"*" =>
+			if(released == 0) {
+				release();
+				unblock(t);
+			}
+			if (e == nil)
+				e = "exit";
+			
+			if ( str->prefix(JCLDREX, e) == 1 )
+				error(e);
+			
+			error( sys->sprint( "%s", e) );
+			
+			#else if (e.name == noclassdeffound)
+			#{		
+			#	error(nil);
+			#}
+			#else
+			#	error(sys->sprint("loader exception: %s: %s: %d", e.mod, e.name, e.pc));
+	}
+	return nil;
 }
 
 #
@@ -526,6 +525,17 @@ loadhierarchy(name: string): ref Class
 		loaderror( classcircularity, name );
 	}
 	return c;
+}
+
+#
+#   Check if a string matches exception,
+#   right aligned in string
+#
+matches(str, e: string): int
+{
+	if (len str >= len e && str[len str - len e:] == e)
+		return 1;
+	return 0;
 }
 
 #
@@ -773,7 +783,7 @@ nothreads(t: ref ThreadData)
 		release();
 		if (t != nil) {
 			t.culprit = threaddeath().new();
-			sys->raise(JAVAEXCEPTION);
+			raise JAVAEXCEPTION;
 		}
 		return;
 	}
@@ -791,7 +801,7 @@ system_exit()
 	stopthreads(t);
 	release();
 	t.culprit = threaddeath().new();
-	sys->raise(JAVAEXCEPTION);
+	raise JAVAEXCEPTION;
 }
 
 cmd_start:	array of byte;
@@ -904,7 +914,7 @@ threadmanager()
 				dostop(t);
 		* =>
 			threadctl = nil;
-			sys->raise( "bad threadctl command" ); #error("bad threadctl command");
+			raise "bad threadctl command"; #error("bad threadctl command");
 		}
 		t = nil;
 	}
@@ -948,7 +958,7 @@ mkexception( name : string ) : ref Object
 }
 
 # convert an Inferno exception into a Java Exception
-sysexception( e : ref Sys->Exception ) : ref Object
+sysexception( e : string ) : ref Object
 {
 	s   : string;
 	msg : string;
@@ -959,11 +969,11 @@ sysexception( e : ref Sys->Exception ) : ref Object
 		s   = "InternalError";
 		msg = "unknown";
 	}
-	else if ( str->prefix(JCLDREX,e.name) == 1 )
+	else if ( str->prefix(JCLDREX,e) == 1 )
 	{
 		#trace(JDEBUG, sys->sprint("sysexception: / %s /", e.name ) );
 		# try to convert JavaClassLoader exceptions first
-		rest := e.name[len JCLDREX:];  #strip off prefix
+		rest := e[len JCLDREX:];  #strip off prefix
 		
 		# pull the possible java ex name; save the rest as a message
 		ex : string;
@@ -988,7 +998,7 @@ sysexception( e : ref Sys->Exception ) : ref Object
 	else 
 	{	
 		#trace(JDEBUG, sys->sprint("sysexception: / %s /", e.name ) );
-		case e.name 
+		case e
 		{
 			#
 			# inferno system exceptions
@@ -1024,7 +1034,7 @@ sysexception( e : ref Sys->Exception ) : ref Object
 		}
 
 		# fill throwable object with information from inferno ex
-		msg = sys->sprint( "%s[%d]:%s", e.mod, e.pc, e.name );
+		#msg = sys->sprint( "%s[%d]:%s", e.mod, e.pc, e.name );
 	}
 
 	obj := mkexception(s);   #create Java Ex object
@@ -1039,11 +1049,11 @@ sysexception( e : ref Sys->Exception ) : ref Object
 	return( obj );
 }
 
-culprit(e: ref Sys->Exception): ref Object
+culprit(e: string): ref Object
 {
 	thd := getthreaddata();
 
-	if ( thd.culprit == nil || e.name != JAVAEXCEPTION )
+	if ( thd.culprit == nil || e != JAVAEXCEPTION )
 	{
 		# no java exception -- turn an inferno
 		# exception into a Java Exception
@@ -1056,7 +1066,7 @@ culprit(e: ref Sys->Exception): ref Object
 throw(c: ref Object)
 {
 	getthreaddata().culprit = c;
-	sys->raise(JAVAEXCEPTION);
+	raise JAVAEXCEPTION;
 }
 
 sthrow(s: string)
@@ -1358,9 +1368,9 @@ monitor()
 		MEXIT =>
 			m = getmonitor(o);
 			if (m.count == 0)
-				sys->raise("mexit inbalance" ); #error("mexit inbalance");
+				raise "mexit inbalance"; #error("mexit inbalance");
 			if (m.thread != t)
-				sys->raise("mexit mismatch");  #error("mexit mismatch");
+				raise "mexit mismatch"; #error("mexit mismatch");
 			m.count--;
 			if (m.count == 0)
 				monitornext(m);
@@ -1391,7 +1401,7 @@ monitor()
 			dotimer(n);
 		* =>
 			monitorctl = nil;
-			sys->raise("bad monitorctl command");   #error("bad monitorctl command");
+			raise "bad monitorctl command"; #error("bad monitorctl command");
 		}
 		t = nil;
 		o = nil;
@@ -1772,14 +1782,14 @@ Class.new(c: self ref Class): ref Object
 Class.call(c: self ref Class, x: int, a: ref Object): ref Object
 {
 	if (x < 0 || x >= c.mlinks)
-		sys->raise(badcallindex);
+		raise badcallindex;
 	return jassist->mcall1(c.mod, x, a);
 }
 
 Class.clone(c: self ref Class, o: ref Object): ref Object
 {
 	if (c.cloneindex < 0)
-		sys->raise(nocloneindex);
+		raise nocloneindex;
 	return jassist->mcall1(c.mod, c.cloneindex, o);
 }
 
@@ -1797,14 +1807,14 @@ Class.loadclass(c: self ref Class)
 	m := load Nilmod f;
 	if (m == nil) {
 		e := sys->sprint("%r");
-		if (e != EXIST)
+		if (!matches(e, EXIST))
 			error(f + ": " + e);
 		f = ROOT + f;
 		m = load Nilmod f;
 		if (m == nil) {
 			e = sys->sprint("%r");
 			m : string;
-			if (e != EXIST)
+			if (!matches(e, EXIST))
 				m = f + ": " + e;
 			else
 				m = c.name + ": class not found";
@@ -3367,7 +3377,7 @@ mangle(f, s: string): string
 	return concat(l, 1);
 }
 
-handlejavaex(nil: ref Sys->Exception, obj: ref Object)
+handlejavaex(nil: string, obj: ref Object)
 {
 	class := obj.class();
 	if (class != tdclass) {
@@ -3402,25 +3412,19 @@ setflags( flags : list of (string,int) )
 
 runmain( classloader : JavaClassLoader, classname : string, argv : list of string )
 {
-	e := ref Sys->Exception;
-	if ( sys->rescue("*",e) == Sys->HANDLER )
 	{
 		classloader->loader(classname).run(tl tl argv);
 	}
-	else
+	exception e
 	{
-		sys->rescued(Sys->ONCE, nil);
-		m: string;
-		if ( e.name == JAVAEXCEPTION )
-			m = sys->sprint("uncaught exception: %s : %d", e.mod, e.pc);
-		else
-			m = sys->sprint("uncaught exception: %s: %s: %d", e.mod, e.name, e.pc);
-		mesg(m);
-		if ( (obj := culprit(e)) != nil) 
-			handlejavaex(e, obj);
-		else {
-			sys->raise(m); #just giveup
-		}
-		classloader->shutdown();
+		"*" =>
+			m := sys->sprint("uncaught exception: %s", e);
+			mesg(m);
+			if ( (obj := culprit(e)) != nil) 
+				handlejavaex(e, obj);
+			else {
+				raise m; #just giveup
+			}
+			classloader->shutdown();
 	}
 }

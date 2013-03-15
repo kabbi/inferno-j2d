@@ -628,10 +628,8 @@ ThrowException( name : string, msg : string )
 		obj := AllocObject( class );
 		
 		# put msg into the object and throw the object
-		args := array[] of 
-			{
-				ref Value.TObject(cast->FromJString(NewString(msg)))
-			};
+		args := array [1] of ref Value;
+		args[0] = ref Value.TObject(cast->FromJString(NewString(msg)));
 		#if ( SetObjField( obj, "detailMessage", val ) == OK )
 		(val,err) := CallMethod( obj, "<init>", "(Ljava/lang/String;)V", args );
 
@@ -646,7 +644,7 @@ ThrowException( name : string, msg : string )
 # 
 # return a Java Exception
 #
-JavaException( ex : ref Sys->Exception ) : JObject
+JavaException( ex : string ) : JObject
 {
 	# grab any Java object currently being thrown.
 	jthrow := jldr->getthreaddata().culprit;

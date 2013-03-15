@@ -1,8 +1,8 @@
 <../mkconfig
 
 DIRS=\
-	tools\
-	pkg\
+#	tools\
+#	pkg\
 	appl\
 
 <$ROOT/mkfiles/mksubdirs

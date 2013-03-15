@@ -16,7 +16,7 @@ JavaClassLoader: module
 	OBJ:			con "@obj";
 	JEX:			con "@jex";
 	SYS:			con "@sys";
-	EXIST:			con "file does not exist";
+	EXIST:			con "does not exist";
 	MAINFIELD:		con "main";
 	MAINSIGNATURE:		con "([Ljava/lang/String;)V";
 	VOIDSIGNATURE:		con "()V";
@@ -49,7 +49,7 @@ JavaClassLoader: module
 	RTTHISOFFSET:		con 3 * WORDZ;
 	RTFIRSTRELOC:		con 4 * WORDZ;
 	CLASSADTOFFSET:		con 1 * WORDZ;
-	MAXUNENCODED:		con Sys->NAMELEN - 7;
+	MAXUNENCODED:		con Sys->NAMEMAX - 7;
 	ENCODEDLEN:		con 21;
 	RDELTA:			con 16r80;
 
@@ -308,7 +308,7 @@ JavaClassLoader: module
 	getclass:	fn(name: string): ref Class;
 	getmodclass:	fn(mod: Nilmod): ref Class;
 	runmain:        fn( j: JavaClassLoader, classname : string, argv : list of string );
-	sysexception:   fn( ex : ref Sys->Exception ) : ref Object;
+	sysexception:   fn( ex : string ) : ref Object;
 	setflags:       fn( flags : list of (string,int) );
 
 	# runtime entry points
@@ -327,7 +327,7 @@ JavaClassLoader: module
 	getthreaddata:	fn(): ref ThreadData;
 	getcontext:	fn(): ref Draw->Context;
 	daemonize:	fn();
-	culprit:	fn(e: ref Sys->Exception): ref Object;
+	culprit:	fn(e: string): ref Object;
 	throw:		fn(c: ref Object);
 	rtload:		fn(addr: int);
 	getinterface:	fn(c: ref Class, cookie: int): int;

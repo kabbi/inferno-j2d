@@ -6,8 +6,8 @@ MODULES=\
 	java.m\
 	javaisa.m\
 	reloc.m\
-	$ROOT/appl/limbo/arg.m\
-	$ROOT/appl/limbo/isa.m\
+	$ROOT/appl/cmd/limbo/arg.m\
+	$ROOT/appl/cmd/limbo/isa.m\
 	asm.b\
 	bb.b\
 	datarloc.b\
@@ -46,4 +46,4 @@ DISBIN=$ROOT/java/dis/java
 <$ROOT/mkfiles/mkdis
 
 LIMBOFLAGS=-I$MODDIR\
-	-I$ROOT/appl/limbo\
+	-I$ROOT/appl/cmd/limbo\

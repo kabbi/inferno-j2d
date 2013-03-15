@@ -3,8 +3,6 @@ math:	Math;
 sys:	Sys;
 str:	String;
 
-NAMELEN: con 28;
-
 Iobuf: import bufio;
 fprint, print, sprint: import sys;
 
@@ -62,7 +60,7 @@ translate(in: string, out: string)
 	bout.close();
 }
 
-MAXUNENCODED:	con NAMELEN - 7;
+MAXUNENCODED:	con Sys->NAMEMAX - 7;
 ENCODEDLEN:	con 21;
 
 encoding :=	array [] of {

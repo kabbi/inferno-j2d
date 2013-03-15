@@ -538,7 +538,7 @@ JNI : module
 	# culprit() is nil then ex is converted to the appropriate
 	# Java throwable and returned.
 	#
-	JavaException: fn( ex : ref Sys->Exception ) : JObject;
+	JavaException: fn( ex : string ) : JObject;
 
 	#
 	# Clear any current Exception for the calling thread.
